@@ -61,29 +61,20 @@ app = Flask(
 )
 
 
-def clear_db():
-    """Delete everything from the database."""
-    try:
-        memgraph.execute_query("MATCH (n) DETACH DELETE n;")
-    except BaseException:
-        log.info("Clear database went wrong.")
-        return ("", 204)
-
-
 def load_tissue_data(tissue: str):
     """Load tissue-specific data into the database."""
     try:
         start_time = time.time()
 
-        properties_addres = Path("/usr/lib/memgraph/import-data") / Path(
-            "interactions_" + tissue + "_properties.csv"
+        properties_address = Path("/usr/lib/memgraph/import-data").joinpath(
+            f"interactions_{tissue}_properties.csv"
         )
-        interactions_addres = Path("/usr/lib/memgraph/import-data") / Path(
-            "interactions_" + tissue + ".csv"
+        interactions_address = Path("/usr/lib/memgraph/import-data").joinpath(
+            f"interactions_{tissue}.csv"
         )
 
         memgraph.execute_query(
-            f"""LOAD CSV FROM "{properties_addres}"
+            f"""LOAD CSV FROM "{properties_address}"
             WITH HEADER DELIMITER "|" AS row
             CREATE (n:PROTEIN
                             {{EntrezGeneID: ToInteger(row.EntrezGeneID),
@@ -96,7 +87,7 @@ def load_tissue_data(tissue: str):
         memgraph.create_index(MemgraphIndex(label="PROTEIN", property="EntrezGeneID"))
 
         memgraph.execute_query(
-            f"""LOAD CSV FROM "{interactions_addres}"
+            f"""LOAD CSV FROM "{interactions_address}"
             WITH HEADER DELIMITER "|" AS row
             MATCH (a:PROTEIN {{EntrezGeneID: toInteger(row.EntrezGeneID1)}}),
             (b:PROTEIN {{EntrezGeneID: toInteger(row.EntrezGeneID2)}})
@@ -104,8 +95,8 @@ def load_tissue_data(tissue: str):
         )
 
         duration = time.time() - start_time
-        log.info("Data loaded in: " + str(duration) + " seconds")
-    except BaseException:
+        log.info(f"Data loaded in: {duration} seconds")
+    except Exception:
         log.info("Data loading went wrong.")
         return ("", 204)
 
@@ -120,15 +111,15 @@ def calculate_betweenness_centrality():
             SET node.BetweennessCentrality = toFloat(betweeenness_centrality); """
         )
         duration = time.time() - start_time
-        log.info("Betweenness Centrality calculated in: " + str(duration) + " seconds")
-    except BaseException:
+        log.info(f"Betweenness Centrality calculated in: {duration} seconds")
+    except Exception:
         log.info("Calculating betweenness centrality went wrong.")
         return ("", 204)
 
 
 @app.route("/load-data/<tissue>")
 def load_data(tissue):
-    clear_db()
+    memgraph.drop_database()
     load_tissue_data(tissue)
     calculate_betweenness_centrality()
 
@@ -179,11 +170,11 @@ def get_data():
         response = {"nodes": nodes, "links": links}
 
         duration = time.time() - start_time
-        log.info("Data fetched in: " + str(duration) + " seconds")
+        log.info(f"Data fetched in: {duration} seconds")
 
         return Response(json.dumps(response), status=200, mimetype="application/json")
 
-    except BaseException:
+    except Exception:
         log.info("Data fetching went wrong.")
         return ("", 204)
 
@@ -218,11 +209,11 @@ def get_properties(protein_id):
         }
 
         duration = time.time() - start_time
-        log.info("Protein properties fetched in: " + str(duration) + " seconds")
+        log.info(f"Protein properties fetched in: {duration} seconds")
 
         return Response(json.dumps(response), status=200, mimetype="application/json")
 
-    except BaseException:
+    except Exception:
         log.info("Protein properties fetching went wrong.")
         return ("", 204)
 
