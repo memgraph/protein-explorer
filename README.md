@@ -6,7 +6,7 @@ Install [docker and docker-compose](https://docs.docker.com/get-docker/). Docker
 
 ## Make sure to have memgraph:latest Docker image
 
-Download [Memgraph Docker image](https://download.memgraph.com/memgraph/v1.5.0/docker/memgraph-1.5.0-community-docker.tar.gz) and save it to a location you can quickly locate.
+Download the [Memgraph Docker image](https://download.memgraph.com/memgraph/v1.5.0/docker/memgraph-1.5.0-community-docker.tar.gz) and save it to a location you can quickly access.
 
 Run the command below in your command line to begin the installation. Simply replace the <version> placeholder with the version number included in the filename of the Docker image you’ve just downloaded:
 '''
