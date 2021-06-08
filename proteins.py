@@ -3,9 +3,11 @@ import json
 import time
 from pathlib import Path
 from argparse import ArgumentParser
+from functools import wraps
 from flask import Flask, Response, render_template
 from gqlalchemy import Match, Memgraph
 from gqlalchemy.models import MemgraphIndex
+from enum import Enum
 
 
 log = logging.getLogger(__name__)
@@ -61,77 +63,96 @@ app = Flask(
 )
 
 
+class Properties(Enum):
+    ENTREZ_GENE_ID = "EntrezGeneID"
+    OFFICIAL_SYMBOL = "OfficialSymbol"
+    OFFICIAL_FULL_NAME = "OfficialFullName"
+    SUMMARY = "Summary"
+    BETWEENNESS_CENTRALITY = "BetweennessCentrality"
+
+
+def log_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        duration = time.time() - start_time
+        log.info(f"Time for {func.__name__} is {duration}")
+        return result
+    return wrapper
+
+
+@log_time
 def load_tissue_data(tissue: str):
     """Load tissue-specific data into the database."""
-    try:
-        start_time = time.time()
+    properties_address = Path("/usr/lib/memgraph/import-data").joinpath(
+        f"interactions_{tissue}_properties.csv"
+    )
+    interactions_address = Path("/usr/lib/memgraph/import-data").joinpath(
+        f"interactions_{tissue}.csv"
+    )
 
-        properties_address = Path("/usr/lib/memgraph/import-data").joinpath(
-            f"interactions_{tissue}_properties.csv"
-        )
-        interactions_address = Path("/usr/lib/memgraph/import-data").joinpath(
-            f"interactions_{tissue}.csv"
-        )
+    memgraph.execute_query(
+        f"""LOAD CSV FROM "{properties_address}"
+        WITH HEADER DELIMITER "|" AS row
+        CREATE (n:PROTEIN
+                        {{{Properties.ENTREZ_GENE_ID.value}: ToInteger(row.{Properties.ENTREZ_GENE_ID.value}),
+                        {Properties.OFFICIAL_SYMBOL.value}: row.{Properties.OFFICIAL_SYMBOL.value},
+                        {Properties.OFFICIAL_FULL_NAME.value}: row.{Properties.OFFICIAL_FULL_NAME.value},
+                        {Properties.SUMMARY.value}: row.{Properties.SUMMARY.value}}}
+        );"""
+    )
 
-        memgraph.execute_query(
-            f"""LOAD CSV FROM "{properties_address}"
-            WITH HEADER DELIMITER "|" AS row
-            CREATE (n:PROTEIN
-                            {{EntrezGeneID: ToInteger(row.EntrezGeneID),
-                            OfficialSymbol: row.OfficialSymbol,
-                            OfficialFullName: row.OfficialFullName,
-                            Summary: row.Summary}}
-            );"""
-        )
+    memgraph.create_index(MemgraphIndex(label="PROTEIN", property=Properties.ENTREZ_GENE_ID.value))
 
-        memgraph.create_index(MemgraphIndex(label="PROTEIN", property="EntrezGeneID"))
-
-        memgraph.execute_query(
-            f"""LOAD CSV FROM "{interactions_address}"
-            WITH HEADER DELIMITER "|" AS row
-            MATCH (a:PROTEIN {{EntrezGeneID: toInteger(row.EntrezGeneID1)}}),
-            (b:PROTEIN {{EntrezGeneID: toInteger(row.EntrezGeneID2)}})
-            CREATE (a)-[e:INTERACTION]->(b);"""
-        )
-
-        duration = time.time() - start_time
-        log.info(f"Data loaded in: {duration} seconds")
-    except Exception:
-        log.info("Data loading went wrong.")
-        return ("", 204)
+    memgraph.execute_query(
+        f"""LOAD CSV FROM "{interactions_address}"
+        WITH HEADER DELIMITER "|" AS row
+        MATCH (a:PROTEIN {{{Properties.ENTREZ_GENE_ID.value}: toInteger(row.{Properties.ENTREZ_GENE_ID.value}1)}}),
+        (b:PROTEIN {{{Properties.ENTREZ_GENE_ID.value}: toInteger(row.{Properties.ENTREZ_GENE_ID.value}2)}})
+        CREATE (a)-[e:INTERACTION]->(b);"""
+    )
 
 
+@log_time
 def calculate_betweenness_centrality():
     """Call the Betweenness Centrality procesdure and store the results."""
-    try:
-        start_time = time.time()
-        memgraph.execute_query(
-            """CALL betweenness_centrality.get(FALSE, TRUE)
-            YIELD node, betweeenness_centrality
-            SET node.BetweennessCentrality = toFloat(betweeenness_centrality); """
-        )
-        duration = time.time() - start_time
-        log.info(f"Betweenness Centrality calculated in: {duration} seconds")
-    except Exception:
-        log.info("Calculating betweenness centrality went wrong.")
-        return ("", 204)
+    memgraph.execute_query(
+        """CALL betweenness_centrality.get(FALSE, TRUE)
+        YIELD node, betweeenness_centrality
+        SET node.BetweennessCentrality = toFloat(betweeenness_centrality); """
+    )
 
 
 @app.route("/load-data/<tissue>")
 def load_data(tissue):
-    memgraph.drop_database()
-    load_tissue_data(tissue)
-    calculate_betweenness_centrality()
+    try:
+        memgraph.drop_database()
+    except Exception:
+        log.info("Drop database went wrong.")
+        return ("", 500)
+
+    try:
+        load_tissue_data(tissue)
+    except Exception:
+        log.info("Data loading went wrong.")
+        return ("", 404)
+
+    try:
+        calculate_betweenness_centrality()
+    except Exception:
+        log.info("Calculating betweenness centrality went wrong.")
+        return ("", 500)
 
     return Response(json.dumps(""), status=200, mimetype="application/json")
 
 
+
 @app.route("/get-graph", methods=["GET"])
-def get_data():
+@log_time
+def get_data(*args, **kwargs):
     """Load everything from the database."""
     try:
-        start_time = time.time()
-
         results = (
             Match()
             .node("PROTEIN", variable="from")
@@ -144,13 +165,13 @@ def get_data():
         nodes_set = set()
         links_set = set()
         for result in results:
-            source_id = result["from"].properties["EntrezGeneID"]
-            source_bc = result["from"].properties["BetweennessCentrality"]
-            source_symbol = result["from"].properties["OfficialSymbol"]
+            source_id = result["from"].properties[Properties.ENTREZ_GENE_ID.value]
+            source_bc = result["from"].properties[Properties.BETWEENNESS_CENTRALITY.value]
+            source_symbol = result["from"].properties[Properties.OFFICIAL_SYMBOL.value]
 
-            target_id = result["to"].properties["EntrezGeneID"]
-            target_bc = result["to"].properties["BetweennessCentrality"]
-            target_symbol = result["to"].properties["OfficialSymbol"]
+            target_id = result["to"].properties[Properties.ENTREZ_GENE_ID.value]
+            target_bc = result["to"].properties[Properties.BETWEENNESS_CENTRALITY.value]
+            target_symbol = result["to"].properties[Properties.OFFICIAL_SYMBOL.value]
 
             nodes_set.add((source_id, source_bc, source_symbol))
             nodes_set.add((target_id, target_bc, target_symbol))
@@ -169,53 +190,49 @@ def get_data():
 
         response = {"nodes": nodes, "links": links}
 
-        duration = time.time() - start_time
-        log.info(f"Data fetched in: {duration} seconds")
-
         return Response(json.dumps(response), status=200, mimetype="application/json")
 
     except Exception:
         log.info("Data fetching went wrong.")
-        return ("", 204)
+        return ("", 500)
+
 
 
 @app.route("/protein-properties/<protein_id>", methods=["GET"])
-def get_properties(protein_id):
+@log_time
+def get_properties(*args, **kwargs):
     try:
-        start_time = time.time()
+        protein_id = kwargs['protein_id']
 
         results = (
             Match()
             .node(variable="node")
-            .where("node.EntrezGeneID", "=", int(protein_id))
+            .where(f"node.{Properties.ENTREZ_GENE_ID.value}", "=", int(protein_id))
             .execute()
         )
         result = next(results)
 
-        node_bc = result["node"].properties.get("BetweennessCentrality", "")
-        node_id = result["node"].properties.get("EntrezGeneID", "")
-        node_symbol = result["node"].properties.get("OfficialSymbol", "")
-        node_name = result["node"].properties.get("OfficialFullName", "")
-        node_summary = result["node"].properties.get("Summary", "")
+        node_bc = result["node"].properties.get(Properties.BETWEENNESS_CENTRALITY.value, "")
+        node_id = result["node"].properties.get(Properties.ENTREZ_GENE_ID.value, "")
+        node_symbol = result["node"].properties.get(Properties.OFFICIAL_SYMBOL.value, "")
+        node_name = result["node"].properties.get(Properties.OFFICIAL_FULL_NAME.value, "")
+        node_summary = result["node"].properties.get(Properties.SUMMARY.value, "")
 
         response = {
             "properties": {
-                "EntrezGeneID": node_id,
-                "OfficialSymbol": node_symbol,
-                "OfficialFullName": node_name,
-                "Summary": node_summary,
-                "BetweennessCentrality": node_bc,
+                Properties.ENTREZ_GENE_ID.value: node_id,
+                Properties.OFFICIAL_SYMBOL.value: node_symbol,
+                Properties.OFFICIAL_FULL_NAME.value: node_name,
+                Properties.SUMMARY.value: node_summary,
+                Properties.BETWEENNESS_CENTRALITY.value: node_bc,
             }
         }
-
-        duration = time.time() - start_time
-        log.info(f"Protein properties fetched in: {duration} seconds")
 
         return Response(json.dumps(response), status=200, mimetype="application/json")
 
     except Exception:
         log.info("Protein properties fetching went wrong.")
-        return ("", 204)
+        return ("", 500)
 
 
 @app.route("/", methods=["GET"])
@@ -224,6 +241,7 @@ def index():
 
 
 def main():
+    time.sleep(1)
     load_data("cochlea")
     app.run(host=args.app_host, port=args.app_port, debug=args.debug)
 
