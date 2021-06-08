@@ -2,7 +2,7 @@
 
 ## Docker and Compose Installation
 
-Install [Docker and Compose](https://docs.docker.com/get-docker/): an open platform for developing, shipping, and running applications. It enables you to separate your application from your infrastructure (host machine). If you are installing Docker on Windows, Compose will be already included. For Linux and macOS visit [this site](https://docs.docker.com/compose/install/).
+Install [docker and docker-compose](https://docs.docker.com/get-docker/). Docker is an open platform for developing, shipping, and running applications. It enables you to separate your application from your infrastructure (host machine). If you are installing Docker on Windows, docker-compose will already be included. For Linux and macOS visit [this site](https://docs.docker.com/compose/install/).
 
 ## Make sure to have memgraph:latest Docker image
 
