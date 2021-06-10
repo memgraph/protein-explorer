@@ -135,20 +135,10 @@ def calculate_betweenness_centrality():
 def load_data(tissue):
     try:
         memgraph.drop_database()
-    except Exception:
-        log.info("Drop database went wrong.")
-        return ("", 500)
-
-    try:
         load_tissue_data(tissue)
-    except Exception:
-        log.info("Data loading went wrong.")
-        return ("", 404)
-
-    try:
         calculate_betweenness_centrality()
-    except Exception:
-        log.info("Calculating betweenness centrality went wrong.")
+    except Exception as e:
+        log.error(f"Loading data failed: {e}")
         return ("", 500)
 
     return Response(json.dumps(""), status=200, mimetype="application/json")
