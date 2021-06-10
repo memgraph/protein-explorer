@@ -27,8 +27,8 @@ def parse_args():
     Parse command line arguments.
     """
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument("--app-host", default="0.0.0.0", help="Host address.")
-    parser.add_argument("--app-port", default=5000, type=int, help="App port.")
+    parser.add_argument("--host", default="0.0.0.0", help="Host address.")
+    parser.add_argument("--port", default=5000, type=int, help="App port.")
     parser.add_argument(
         "--template-folder",
         default="public/template",
@@ -51,8 +51,15 @@ def parse_args():
 
 args = parse_args()
 
-
 memgraph = Memgraph()
+connection_established = False
+while(not connection_established):
+    try:
+        if (memgraph._get_cached_connection().is_active()):
+            connection_established = True
+    except:
+        log.info("Memgraph probably isn't running.")
+        time.sleep(4)
 
 
 app = Flask(
@@ -241,9 +248,8 @@ def index():
 
 
 def main():
-    time.sleep(1)
     load_data("cochlea")
-    app.run(host=args.app_host, port=args.app_port, debug=args.debug)
+    app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 if __name__ == "__main__":
