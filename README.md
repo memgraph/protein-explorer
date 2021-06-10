@@ -15,7 +15,7 @@ docker pull memgraph/memgraph-mage
 
 Position yourself in the root folder of the Protein Explorer project.
 
-Download the [data](download.memgraph.com/datasets/proteins/proteins_dataset.zip) and save it in the memgraph folder inside the Protein Explorer project.
+Download the [data](https://download.memgraph.com/datasets/proteins/proteins_dataset.zip) and save it in the memgraph folder inside the Protein Explorer project.
 
 Build the Docker image and run the application with the following commands:
 
