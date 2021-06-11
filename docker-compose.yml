@@ -1,0 +1,20 @@
+version: "3"
+services:
+  memgraph-mage:
+    image: memgraph:mage 
+    user: memgraph
+    volumes:
+        - ./memgraph/import-data:/usr/lib/memgraph/import-data
+    ports:
+      - "7687:7687"
+  protein-explorer:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    environment:
+      MG_HOST: memgraph-mage
+      MG_PORT: 7687
+    depends_on:
+      - memgraph-mage
