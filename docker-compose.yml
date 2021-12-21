@@ -1,10 +1,10 @@
 version: "3"
 services:
   memgraph-mage:
-    image: memgraph/memgraph-mage
+    image: memgraph/memgraph-mage:1.1
     user: memgraph
     volumes:
-        - ./memgraph/import-data:/usr/lib/memgraph/import-data
+      - ./memgraph/import-data:/usr/lib/memgraph/import-data
     ports:
       - "7687:7687"
   protein-explorer:
