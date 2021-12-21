@@ -17,8 +17,8 @@ To start the app, follow these instructions:
 
 1. Position yourself in the root folder of the Protein Explorer project.
 2. Create an empty directory with the name `/memgraph`
-3. Download the [data](https://download.memgraph.com/datasets/proteins/proteins_dataset.zip).
-4. Extract the `/import-data` directory from the downloaded file and place it into the previously created `/memgraph` directory.
+3. Download the [data](https://download.memgraph.com/dataset/proteins/proteins_blog.zip).
+4. Create the `import-data` directory inside the `/memgraph` directory and extract the downloaded data there.
 
 Now, you can build the Docker image and run the application with the following commands:
 
