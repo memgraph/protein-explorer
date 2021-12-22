@@ -13,14 +13,9 @@ docker pull memgraph/memgraph-mage
 
 ## Start the app
 
-To start the app, follow these instructions:
+Position yourself in the root folder of the Protein Explorer project.
 
-1. Position yourself in the root folder of the Protein Explorer project.
-2. Create an empty directory with the name `/memgraph`
-3. Download the [data](https://download.memgraph.com/dataset/proteins/proteins_blog.zip).
-4. Create the `import-data` directory inside the `/memgraph` directory and extract the downloaded data there.
-
-Now, you can build the Docker image and run the application with the following commands:
+Next, build the Docker image and run the application with the following commands:
 
 ```
 docker-compose build
