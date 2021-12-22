@@ -26,13 +26,13 @@
   </a>
 </p>
 
-## Docker and Compose Installation
+## Prerequisites
 
 Install [docker and docker-compose](https://docs.docker.com/get-docker/). Docker
 is an open platform for developing, shipping, and running applications. It
 enables you to separate your application from your infrastructure (host
 machine). If you are installing Docker Desktop on Windows or macOS,
-docker-compose will already be included. For Linux visit [this
+docker-compose will already be included. For Linux, visit [this
 site](https://docs.docker.com/compose/install/).
 
 ## Starting the app
