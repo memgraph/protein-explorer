@@ -9,9 +9,6 @@
   <a href="https://github.com/memgraph/protein-explorer">
     <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="build" title="build"/>
   </a>
-  <a href="#contributors-">
-    <img src="https://img.shields.io/badge/all_contributors-3-green.svg?style=flat" />
-  </a>
 </p>
 
 <p align="center">
