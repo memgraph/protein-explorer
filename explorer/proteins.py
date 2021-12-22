@@ -53,9 +53,9 @@ args = parse_args()
 
 memgraph = Memgraph()
 connection_established = False
-while(not connection_established):
+while not connection_established:
     try:
-        if (memgraph._get_cached_connection().is_active()):
+        if memgraph._get_cached_connection().is_active():
             connection_established = True
     except:
         log.info("Memgraph probably isn't running.")
@@ -86,6 +86,7 @@ def log_time(func):
         duration = time.time() - start_time
         log.info(f"Time for {func.__name__} is {duration}")
         return result
+
     return wrapper
 
 
@@ -99,7 +100,7 @@ def load_tissue_data(tissue: str):
         f"interactions_{tissue}.csv"
     )
 
-    memgraph.execute_query(
+    memgraph.execute(
         f"""LOAD CSV FROM "{properties_address}"
         WITH HEADER DELIMITER "|" AS row
         CREATE (n:PROTEIN
@@ -110,9 +111,11 @@ def load_tissue_data(tissue: str):
         );"""
     )
 
-    memgraph.create_index(MemgraphIndex(label="PROTEIN", property=Properties.ENTREZ_GENE_ID.value))
+    memgraph.create_index(
+        MemgraphIndex(label="PROTEIN", property=Properties.ENTREZ_GENE_ID.value)
+    )
 
-    memgraph.execute_query(
+    memgraph.execute(
         f"""LOAD CSV FROM "{interactions_address}"
         WITH HEADER DELIMITER "|" AS row
         MATCH (a:PROTEIN {{{Properties.ENTREZ_GENE_ID.value}: toInteger(row.{Properties.ENTREZ_GENE_ID.value}1)}}),
@@ -124,10 +127,10 @@ def load_tissue_data(tissue: str):
 @log_time
 def calculate_betweenness_centrality():
     """Call the Betweenness Centrality procesdure and store the results."""
-    memgraph.execute_query(
+    memgraph.execute(
         """CALL betweenness_centrality.get(FALSE, TRUE)
-        YIELD node, betweeenness_centrality
-        SET node.BetweennessCentrality = toFloat(betweeenness_centrality); """
+        YIELD node, betweenness_centrality
+        SET node.BetweennessCentrality = toFloat(betweenness_centrality); """
     )
 
 
@@ -142,7 +145,6 @@ def load_data(tissue):
         return ("", 500)
 
     return Response(json.dumps(""), status=200, mimetype="application/json")
-
 
 
 @app.route("/get-graph", methods=["GET"])
@@ -163,7 +165,9 @@ def get_data(*args, **kwargs):
         links_set = set()
         for result in results:
             source_id = result["from"].properties[Properties.ENTREZ_GENE_ID.value]
-            source_bc = result["from"].properties[Properties.BETWEENNESS_CENTRALITY.value]
+            source_bc = result["from"].properties[
+                Properties.BETWEENNESS_CENTRALITY.value
+            ]
             source_symbol = result["from"].properties[Properties.OFFICIAL_SYMBOL.value]
 
             target_id = result["to"].properties[Properties.ENTREZ_GENE_ID.value]
@@ -194,12 +198,11 @@ def get_data(*args, **kwargs):
         return ("", 500)
 
 
-
 @app.route("/protein-properties/<protein_id>", methods=["GET"])
 @log_time
 def get_properties(*args, **kwargs):
     try:
-        protein_id = kwargs['protein_id']
+        protein_id = kwargs["protein_id"]
 
         results = (
             Match()
@@ -209,10 +212,16 @@ def get_properties(*args, **kwargs):
         )
         result = next(results)
 
-        node_bc = result["node"].properties.get(Properties.BETWEENNESS_CENTRALITY.value, "")
+        node_bc = result["node"].properties.get(
+            Properties.BETWEENNESS_CENTRALITY.value, ""
+        )
         node_id = result["node"].properties.get(Properties.ENTREZ_GENE_ID.value, "")
-        node_symbol = result["node"].properties.get(Properties.OFFICIAL_SYMBOL.value, "")
-        node_name = result["node"].properties.get(Properties.OFFICIAL_FULL_NAME.value, "")
+        node_symbol = result["node"].properties.get(
+            Properties.OFFICIAL_SYMBOL.value, ""
+        )
+        node_name = result["node"].properties.get(
+            Properties.OFFICIAL_FULL_NAME.value, ""
+        )
         node_summary = result["node"].properties.get(Properties.SUMMARY.value, "")
 
         response = {
