@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://github.com/memgraph/protein-explorer">
-    <img src="https://public-assets.memgraph.com/github/protein-explorer/protein-explorer.png" 
+    <img src="img/protein-explorer.png" 
          alt="protein-explorer" 
          title="protein-explorer"
          style="width: 70%"/>
